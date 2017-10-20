@@ -8,29 +8,24 @@
 
 void SchunkFTSensorInterface::frameCB(const can::Frame &f){
 
-	if(NODE_ID(f.id) != node_id){
-		return;
-	}
-
     if(f.is_error){
         std::cout << "E " << std::hex << f.id << std::dec; // TODO make a proper ROS ERROR
         return;
     }
 
-    unsigned int opcode = OPCODE(f.id);
-
-    switch(opcode)
+    switch(getType(f))
     {
-    case REQ_SERIAL_NUMBER:
-    	if(f.dlc > 0) can_node_contacted = true;
+    case Serial_Number:
+    	can_node_contacted = true;
     	break;
-    case RESP_SG_DATA_1:
-    	extractRawSGData(f, false);
+    case SG_Data_Packet_1:
+    case SG_Data_Packet_2:
+    	extractRawSGData(f);
     	break;
-    case RESP_SG_DATA_2:
-    	extractRawSGData(f, true);
-    	break;
-    default:
+    case Matrix_Packet_1:
+    case Matrix_Packet_2:
+    case Matrix_Packet_3:
+    	extractMatrix(f);
     	break;
     }
 }

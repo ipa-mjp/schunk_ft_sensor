@@ -5,8 +5,8 @@
   	<arg name="node_name" default="schunk_ft_sensor" />
   	<arg name="can_device"/>
   	<arg name="can_node_id"/>
-  	<arg name="publish_rate" default="1.0"/>
-  	<arg name="silence_limit" default="3.0"/>
+  	<arg name="publish_rate" default="50.0"/>
+  	<arg name="silence_limit" default="0.100"/>
   	
 	<node name="$(arg node_name)" pkg="schunk_ft_sensor" type="schunk_ft_sensor_node" output="screen">
 		<param name="debug" value="$(arg debug)"/>

@@ -12,19 +12,6 @@
 #include <socketcan_interface/threading.h>
 #include <geometry_msgs/Wrench.h>
 
-// CAN REQUEST OPCODES
-#define REQ_SG_DATA			0x0
-#define REQ_SERIAL_NUMBER	0x5
-
-// CAN RESPONCE OPCODES
-#define RESP_SG_DATA_1		0x0
-#define RESP_SG_DATA_2		0x1
-
-#define OPCODE(mes_id)		((mes_id) & 0x0000000F)
-#define NODE_ID(mes_id)		(((mes_id) & 0x000007F0) >> 4)
-
-// MESSAGES
-
 class SchunkFTSensorInterface
 {
 	protected:
@@ -39,17 +26,20 @@ class SchunkFTSensorInterface
 
 		int node_id = 128;
 
-		short sg[6] = {};
+		short	sg[6] = {0},
+				bias[6] = {0};
 
-		double publish_rate = 20.0, // Hz
-				silence_limit = 3.0; // sec, must be at least 5/publish_rate
+		float matrix[6][6];
+
+		double 	publish_rate = 20.0, // Hz
+				silence_limit = 3.0; // sec, must be at least 2/publish_rate
 
 		bool driver_initialized = false;
 
-		volatile bool can_node_contacted = false,
-				matrix_obtained = false,
-				bias_obtained = false,
-				sg_data_received = true;
+		volatile bool 	can_node_contacted = false,
+						matrix_data_obtained[6] = {false},
+						bias_obtained = false,
+						sg_data_received = true;
 
 		std::string can_device;
 
@@ -58,12 +48,44 @@ class SchunkFTSensorInterface
 		can::CommInterface::FrameListener::Ptr frame_listener;
 		can::StateInterface::StateListener::Ptr state_listener;
 
+		enum message_types: unsigned int
+		{
+			/*
+			 * 2 - digit hex number
+			 * 1st digit - opcode
+			 * 2ns digit - number of bytes in data (dlc)
+			 */
+			INVALID = 0xFF,
+			Read_SG_Data = 0x00,
+			SG_Data_Packet_1 = 0x08,
+			SG_Data_Packet_2 = 0x16,
+			Read_Matrix = 0x21,
+			Matrix_Packet_1 = 0x28,
+			Matrix_Packet_2 = 0x38,
+			Matrix_Packet_3 = 0x48,
+			Read_FT_Serial_Number = 0x50,
+			Serial_Number = 0x58,
+			Active_Calibration = 0x61,
+			Read_Counts_Per_Unit = 0x70,
+			Counts_Per_Unit = 0x78,
+			Read_Unit_Codes = 0x80,
+			Unit_Codes = 0x82,
+			Reset = 0xC0
+		};
+
+		SchunkFTSensorInterface::message_types getType(const can::Frame &f);
+		can::Frame getMessage(SchunkFTSensorInterface::message_types type);
+		can::Frame getMessage(SchunkFTSensorInterface::message_types type, unsigned char b);
+		can::Frame getMessage(SchunkFTSensorInterface::message_types type, boost::array<unsigned char, 8> data);
+
 		void frameCB(const can::Frame &f);
 		void stateCB(const can::State & s);
 		void dataRequestTimerCB(const ros::TimerEvent& event);
 		void silenceTimerCB(const ros::TimerEvent& event);
-		void extractRawSGData(const can::Frame &f, bool second);
+		void extractRawSGData(const can::Frame &f);
+		void extractMatrix(const can::Frame &f);
 		void biasRawSGData();
+		void convertoFT();
 
 		bool initParams();
 		bool initDriver();

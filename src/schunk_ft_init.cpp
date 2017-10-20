@@ -9,6 +9,7 @@
 
 bool SchunkFTSensorInterface::initialize()
 {
+	// ORDER: initParams -> initDriver -> contactSensor -> requestMatrix -> requestBias -> initRos
 	if(initParams()
 			&& initDriver()
 			&& contactSensor()
@@ -45,6 +46,8 @@ bool SchunkFTSensorInterface::initParams()
 	nh.getParam(ros::this_node::getName() + "/publish_rate", publish_rate);
 	nh.getParam(ros::this_node::getName() + "/silence_limit", silence_limit);
 
+	f_data_request = getMessage(Read_SG_Data);
+
 	return true;
 }
 
@@ -69,45 +72,74 @@ bool SchunkFTSensorInterface::initDriver()
 
 bool SchunkFTSensorInterface::contactSensor()
 {
-	can::Frame f_serial_number_request;
-	f_serial_number_request.id = (node_id << 4) + REQ_SERIAL_NUMBER;
-
 	int attempts = 0;
 
-	ros::Rate r(0.333333);
+	ros::Rate r(0.5);
 
 	while(!can_node_contacted && ++attempts < 4 && ros::ok())
 	{
-		ROS_INFO_STREAM("Attempt to contact can node with id " << node_id << ":  " << attempts);
-		driver->send(f_serial_number_request);
+		ROS_INFO_STREAM("Attempt to contact CAN node with id " << node_id << ":  " << attempts);
+		driver->send(getMessage(Read_FT_Serial_Number));
 
 		r.sleep();
 	}
 
 	if(can_node_contacted)
-		ROS_INFO_STREAM("Successfully contacted can node with id " << node_id);
+		ROS_INFO_STREAM("Successfully contacted CAN node with id " << node_id);
 	else
-		ROS_ERROR_STREAM("Failed to contact can node with id " << node_id);
+		ROS_ERROR_STREAM("Failed to contact CAN node with id " << node_id);
 
 	return can_node_contacted;
 }
 
 bool SchunkFTSensorInterface::requestMatrix()
 {
+	unsigned char axis_row;
+	ros::Rate r(6);
+
+	for(axis_row = 0; axis_row < 6; axis_row++)
+	{
+		ROS_INFO_STREAM("Reading calibration matrix row " << (int)axis_row);
+
+		driver->send(getMessage(Read_Matrix, axis_row));
+		r.sleep();
+
+		if(!matrix_data_obtained[axis_row])
+			return err("Reading calibration matrix failed.");
+	}
+
+	ROS_INFO_STREAM("Calibration matrix was successfully read.");
+
 	return true;
 }
 
 bool SchunkFTSensorInterface::requestBias()
 {
-	return true;
+	ROS_INFO("Requesting biasing values...");
+
+	if(bias_obtained) // if bias was previously obtained => request data timer is already running and data is being requested regularly
+	{
+		bias_obtained = false;
+	}
+	else // send data request
+	{
+		driver->send(f_data_request);
+	}
+
+	ros::Rate r(publish_rate / 3);
+	r.sleep();
+
+	if(bias_obtained)
+		ROS_INFO_STREAM("Successfully received biasing values.");
+	else
+		return err("Failed to receive biasing values.");
+
+	return bias_obtained;
 }
 
 bool SchunkFTSensorInterface::initRos()
 {
-	sensorTopic = nh.advertise<geometry_msgs::Wrench>(ros::this_node::getName() + "/sensor_data", 10);
-
-	f_data_request.id = (node_id << 4) + REQ_SG_DATA;
-	f_data_request.dlc = 0;
+	sensorTopic = nh.advertise<geometry_msgs::Wrench>(ros::this_node::getName() + "/sensor_data", 1);
 
 	dataRequestTimer = nh.createTimer(ros::Duration(1 / publish_rate), &SchunkFTSensorInterface::dataRequestTimerCB, this);
 	silenceTimer = nh.createTimer(ros::Duration(silence_limit), &SchunkFTSensorInterface::silenceTimerCB, this);
@@ -118,7 +150,7 @@ bool SchunkFTSensorInterface::initRos()
 bool SchunkFTSensorInterface::err(std::string mes)
 {
 	ROS_ERROR_STREAM(ros::this_node::getName() << " --> " << mes);
-	return false;
+	return false; // always return false
 }
 
 bool SchunkFTSensorInterface::failure(std::string mes)
@@ -129,4 +161,38 @@ bool SchunkFTSensorInterface::failure(std::string mes)
 	// TODO handle data acquisition failure here
 
 	return err("DATA ACQUISITION FAILURE: " + mes);
+}
+
+can::Frame SchunkFTSensorInterface::getMessage(SchunkFTSensorInterface::message_types type)
+{
+	boost::array<unsigned char, 8> data;
+	return getMessage(type, data);
+}
+
+can::Frame SchunkFTSensorInterface::getMessage(SchunkFTSensorInterface::message_types type, unsigned char b)
+{
+	boost::array<unsigned char, 8> data;
+	data[0] = b;
+	return getMessage(type, data);
+}
+
+can::Frame SchunkFTSensorInterface::getMessage(SchunkFTSensorInterface::message_types type, boost::array<unsigned char, 8> data)
+{
+	can::Frame f;
+	f.id = (node_id << 4) + (type >> 4);
+	f.dlc = type & 0x0000000F;
+	f.data = data;
+	return f;
+}
+
+SchunkFTSensorInterface::message_types SchunkFTSensorInterface::getType(const can::Frame &f)
+{
+	if(((f.id) & 0x000007F0) >> 4 != node_id)
+	{
+		return INVALID;
+	}
+	else
+	{
+		return message_types(((f.id & 0x0000000F) << 4) + f.dlc);
+	}
 }
