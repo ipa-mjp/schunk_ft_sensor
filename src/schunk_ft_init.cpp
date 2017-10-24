@@ -115,7 +115,7 @@ bool SchunkFTSensorInterface::requestMatrix()
 
 bool SchunkFTSensorInterface::requestBias()
 {
-	ROS_INFO("Requesting biasing values...");
+	ROS_INFO("Reading biasing values...");
 
 	if(bias_obtained) // if bias was previously obtained => request data timer is already running and data is being requested regularly
 	{
@@ -130,9 +130,9 @@ bool SchunkFTSensorInterface::requestBias()
 	r.sleep();
 
 	if(bias_obtained)
-		ROS_INFO_STREAM("Successfully received biasing values.");
+		ROS_INFO_STREAM("Biasing values were successfully read.");
 	else
-		return err("Failed to receive biasing values.");
+		return err("Reading biasing values failed.");
 
 	return bias_obtained;
 }

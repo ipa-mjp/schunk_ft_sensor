@@ -18,9 +18,9 @@ void SchunkFTSensorInterface::extractRawSGData(const can::Frame &f)
 		return;
 
 	case SG_Data_Packet_2:
-		sg[0] = ((short)f.data[2] << 8) | f.data[3];
-		sg[2] = ((short)f.data[4] << 8) | f.data[5];
-		sg[4] = ((short)f.data[6] << 8) | f.data[7];
+		sg[1] = ((short)f.data[0] << 8) | f.data[1];
+		sg[3] = ((short)f.data[2] << 8) | f.data[3];
+		sg[5] = ((short)f.data[4] << 8) | f.data[5];
 
 		break;
 
@@ -67,7 +67,7 @@ void SchunkFTSensorInterface::extractMatrix(const can::Frame &f)
 
 	memcpy(&second, bytes, 4);
 
-	ROS_INFO_STREAM(" ========================== " << first << "  " << second);
+	//ROS_INFO_STREAM(" ========================== " << first << "  " << second);
 
 	switch(getType(f))
 	{
@@ -113,10 +113,10 @@ void SchunkFTSensorInterface::biasRawSGData()
 	sg[4] -= bias[4];
 	sg[5] -= bias[5];
 
-	convertoFT();
+	convertToFT();
 }
 
-void SchunkFTSensorInterface::convertoFT()
+void SchunkFTSensorInterface::convertToFT()
 {
 	// TODO calculate correct values
 	geometry_msgs::Wrench msg;

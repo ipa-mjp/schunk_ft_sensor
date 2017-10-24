@@ -85,7 +85,7 @@ class SchunkFTSensorInterface
 		void extractRawSGData(const can::Frame &f);
 		void extractMatrix(const can::Frame &f);
 		void biasRawSGData();
-		void convertoFT();
+		void convertToFT();
 
 		bool initParams();
 		bool initDriver();
