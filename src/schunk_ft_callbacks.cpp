@@ -15,8 +15,14 @@ void SchunkFTSensorInterface::frameCB(const can::Frame &f){
 
     switch(getType(f))
     {
-    case Serial_Number:
-    	can_node_contacted = true;
+    case Active_Calibration:
+    	checkCalibration(f);
+    	break;
+    case Firmware_Version:
+    	extractFirmwareVersion(f);
+    	break;
+    case Counts_Per_Unit:
+    	extractCountsPerUnit(f);
     	break;
     case SG_Data_Packet_1:
     case SG_Data_Packet_2:

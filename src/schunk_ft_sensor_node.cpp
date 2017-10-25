@@ -7,7 +7,7 @@ int main(int argc, char *argv[])
 	SchunkFTSensorInterface interface;
 	if(!interface.initialize())
 	{
-		interface.finalize(); // to make sure that driver is shut down in case if was initialized
+		interface.finalize(); // to make sure that the driver is shut down in case if it was initialized
 		return 1;
 	}
 

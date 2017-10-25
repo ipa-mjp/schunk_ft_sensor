@@ -6,11 +6,35 @@
  */
 #include <schunk_ft_sensor/schunk_ft.h>
 
+void SchunkFTSensorInterface::checkCalibration(const can::Frame &f)
+{
+	calibration_message_received = true;
+	calibration_successfully_set = calibration == f.data[0];
+}
+
+void SchunkFTSensorInterface::extractFirmwareVersion(const can::Frame &f)
+{
+	ver.major = f.data[0];
+	ver.minor = f.data[1];
+	ver.build = ((unsigned short)f.data[2] << 8) | f.data[3];
+	ver.received = true;
+}
+
+void SchunkFTSensorInterface::extractCountsPerUnit(const can::Frame &f)
+{
+	CpF = ((unsigned int)f.data[0] << 24) | ((unsigned int)f.data[1] << 16) | ((unsigned int)f.data[2] << 8) | f.data[3];
+	CpT = ((unsigned int)f.data[4] << 24) | ((unsigned int)f.data[5] << 16) | ((unsigned int)f.data[6] << 8) | f.data[7];
+	counts_per_unit_received = true;
+}
+
 void SchunkFTSensorInterface::extractRawSGData(const can::Frame &f)
 {
 	switch(getType(f))
 	{
 	case SG_Data_Packet_1:
+
+		status = ((unsigned short)f.data[0] << 8) | f.data[1];
+
 		sg[0] = ((short)f.data[2] << 8) | f.data[3];
 		sg[2] = ((short)f.data[4] << 8) | f.data[5];
 		sg[4] = ((short)f.data[6] << 8) | f.data[7];
@@ -27,6 +51,8 @@ void SchunkFTSensorInterface::extractRawSGData(const can::Frame &f)
 	default:
 		return;
 	}
+
+	if(!checkStatus()) return;
 
 	// check for data validity
 	for(int i = 0; i < 6; i++)
@@ -118,6 +144,7 @@ void SchunkFTSensorInterface::biasRawSGData()
 
 void SchunkFTSensorInterface::convertToFT()
 {
+
 	// TODO calculate correct values
 	geometry_msgs::Wrench msg;
 	msg.force.x = sg[0];
