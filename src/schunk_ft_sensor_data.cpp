@@ -27,48 +27,6 @@ void SchunkFTSensorInterface::extractCountsPerUnit(const can::Frame &f)
 	counts_per_unit_received = true;
 }
 
-void SchunkFTSensorInterface::extractRawSGData(const can::Frame &f)
-{
-	switch(getType(f))
-	{
-	case SG_Data_Packet_1:
-
-		status = ((unsigned short)f.data[0] << 8) | f.data[1];
-
-		sg[0] = ((short)f.data[2] << 8) | f.data[3];
-		sg[2] = ((short)f.data[4] << 8) | f.data[5];
-		sg[4] = ((short)f.data[6] << 8) | f.data[7];
-
-		return;
-
-	case SG_Data_Packet_2:
-		sg[1] = ((short)f.data[0] << 8) | f.data[1];
-		sg[3] = ((short)f.data[2] << 8) | f.data[3];
-		sg[5] = ((short)f.data[4] << 8) | f.data[5];
-
-		break;
-
-	default:
-		return;
-	}
-
-	if(!checkStatus()) return;
-
-	// check for data validity
-	for(int i = 0; i < 6; i++)
-	{
-		if(sg[i] == -32768 || sg[i] == 32767) // GAUGE IS SATURATED, DATA IS UNUSABLE (refer to the documentation)
-		{
-			failure("Invalid data read from sensor. Gauge is saturated. Please refer to the user manual for more information.");
-			return;
-		}
-	}
-
-	sg_data_received = true;
-
-	biasRawSGData();
-}
-
 void SchunkFTSensorInterface::extractMatrix(const can::Frame &f)
 {
 	int current_row;
@@ -116,45 +74,107 @@ void SchunkFTSensorInterface::extractMatrix(const can::Frame &f)
 	matrix_data_obtained[current_row] = true;
 }
 
-void SchunkFTSensorInterface::biasRawSGData()
+void SchunkFTSensorInterface::extractRawSGData(const can::Frame &f)
 {
-	// if biasing values are not obtained yet => use current data as bias
+	switch(getType(f))
+	{
+	case SG_Data_Packet_1:
+
+		status = ((unsigned short)f.data[0] << 8) | f.data[1];
+
+		sg[0] = ((short)f.data[2] << 8) | f.data[3];
+		sg[2] = ((short)f.data[4] << 8) | f.data[5];
+		sg[4] = ((short)f.data[6] << 8) | f.data[7];
+
+		return;
+
+	case SG_Data_Packet_2:
+
+		sg[1] = ((short)f.data[0] << 8) | f.data[1];
+		sg[3] = ((short)f.data[2] << 8) | f.data[3];
+		sg[5] = ((short)f.data[4] << 8) | f.data[5];
+
+		break;
+
+	default:
+		return;
+	}
+
+	if(!checkStatus()) return;
+
+	// check for data validity
+	for(int i = 0; i < 6; i++)
+	{
+		if(sg[i] == -32768 || sg[i] == 32767) // GAUGE IS SATURATED, DATA IS UNUSABLE (refer to the documentation)
+		{
+			failure("Invalid data read from sensor. Gauge is saturated. Please refer to the user manual for more information.");
+			return;
+		}
+	}
+
+	sg_data_received = true;
+
+	short data[6];
+	for(int i = 0; i < 6; i++)
+		data[i] = sg[i];
+
+	averageRawSGData(data);
+}
+
+void SchunkFTSensorInterface::averageRawSGData(short *data)
+{
+	int r;
+	if(sample_cnt < AVG_SMPL_CNT)
+	{
+		for(r = 0; r < 6; r++)
+			sample_sum[r] += data[r];
+		sample_cnt++;
+		return;
+	}
+
+	for(r = 0; r < 6; r++)
+	{
+		data[r] = sample_sum[r] / sample_cnt;
+		sample_sum[r] = 0;
+	}
+	sample_cnt = 0;
+
+	biasRawSGData(data);
+}
+
+void SchunkFTSensorInterface::biasRawSGData(short *data)
+{
+	int r;
 	if(!bias_obtained)
 	{
-		bias[0] = sg[0];
-		bias[1] = sg[1];
-		bias[2] = sg[2];
-		bias[3] = sg[3];
-		bias[4] = sg[4];
-		bias[5] = sg[5];
+		for(r = 0; r < 6; r++)
+			bias[r] = data[r];
 		bias_obtained = true;
 		return;
 	}
 
-	// bias
-	sg[0] -= bias[0];
-	sg[1] -= bias[1];
-	sg[2] -= bias[2];
-	sg[3] -= bias[3];
-	sg[4] -= bias[4];
-	sg[5] -= bias[5];
+	// bias the data
+	for(r = 0; r < 6; r++)
+		data[r] -= bias[r];
 
-	convertToFT();
+	convertToFT(data);
 }
 
-void SchunkFTSensorInterface::convertToFT()
+void SchunkFTSensorInterface::convertToFT(short *data)
 {
+	float result[6] = {0};
 
-	// TODO calculate correct values
+	for(int r = 0; r < 6; r++)
+		for(int c = 0; c < 6; c++)
+			result[r] += matrix[r][c] * data[c];
+
 	geometry_msgs::Wrench msg;
-	msg.force.x = sg[0];
-	msg.force.y = sg[1];
-	msg.force.z = sg[2];
-	msg.torque.x = sg[3];
-	msg.torque.y = sg[4];
-	msg.torque.z = sg[5];
-
-	//ROS_INFO_STREAM(msg);
+	msg.force.x = result[0];
+	msg.force.y = result[1];
+	msg.force.z = result[2];
+	msg.torque.x = result[3];
+	msg.torque.y = result[4];
+	msg.torque.z = result[5];
 
 	sensorTopic.publish(msg);
 }

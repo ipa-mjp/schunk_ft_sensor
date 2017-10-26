@@ -12,21 +12,22 @@ bool SchunkFTSensorInterface::initialize()
 	if(initParams()
 			&& initDriver()
 			&& setCalibration()
-			&& requestFirmwareVersion()
 			&& requestCountsPerUnits()
-			&& requestMatrix()
-			&& requestBias()
 			&& initRos())
 	{
 		ROS_INFO_STREAM("Sensor was successfully initialized.");
+
 		return true;
-	}else{
-		return false;
 	}
+
+	return false;
 }
 
 bool SchunkFTSensorInterface::finalize()
 {
+	silenceTimer.stop();
+	dataRequestTimer.stop();
+
 	if(!driver_initialized) return true;
 
 	driver->shutdown();
@@ -46,9 +47,7 @@ bool SchunkFTSensorInterface::initParams()
 	int calibr = 0;
 	nh.getParam(ros::this_node::getName() + "/calibration", calibr);
 	if(calibr > 15 || calibr < 0)
-	{
 		return err("Set valid \"calibration\" parameter (0...15).");
-	}
 	calibration = (unsigned char)calibr;
 
 	nh.getParam(ros::this_node::getName() + "/debug", debug);
@@ -56,6 +55,10 @@ bool SchunkFTSensorInterface::initParams()
 	nh.getParam(ros::this_node::getName() + "/silence_limit", silence_limit);
 
 	f_data_request = makeFrame(Read_SG_Data);
+	for(int i = 0; i < 6; i++) sample_sum[i] = 0;
+	sample_cnt = 0;
+
+	resetBias();
 
 	return true;
 }
@@ -103,7 +106,7 @@ bool SchunkFTSensorInterface::setCalibration()
 
 	ROS_INFO_STREAM("Calibration was successfully set to " << (int)calibration);
 
-	return true;
+	return requestMatrix();
 }
 
 
@@ -120,31 +123,41 @@ bool SchunkFTSensorInterface::requestFirmwareVersion()
 	}
 	else
 	{
-		ROS_WARN_STREAM("Failed to read Firmware version. Standard values for Counts per Force and Torque units will be used.");
+		ROS_WARN_STREAM("Failed to read Firmware version.");
 	}
 	return true;
 }
 
 bool SchunkFTSensorInterface::requestCountsPerUnits()
 {
+	requestFirmwareVersion();
+
 	counts_per_unit_received = false;
 	if(ver.received && ver.standardCpTCpF())
 	{
 		ROS_WARN_STREAM("With firmware version below 3.7 standard values for Counts per Force and Torque units will be used.");
-		return true;
 	}
-
-	ros::Rate r(4);
-	ROS_INFO("Requesting counts per Force and Torque.");
-
-	driver->send(makeFrame(Read_Counts_Per_Unit));
-	r.sleep();
-	if(!counts_per_unit_received)
+	else
 	{
-		return err("Failed to read counts per unit. Standard values for Counts per Force and Torque units will be used.");
+		ros::Rate r(4);
+		ROS_INFO("Requesting counts per Force and Torque.");
+
+		driver->send(makeFrame(Read_Counts_Per_Unit));
+		r.sleep();
+		if(counts_per_unit_received)
+			ROS_INFO_STREAM("Counts per unit were successfully read (CpF: " << (int)CpF << ", CpT: " << (int)CpT << ").");
+		else
+			ROS_WARN_STREAM("Failed to read counts per unit. Standard values for Counts per Force and Torque units will be used (CpF: " << (int)CpF << ", CpT: " << (int)CpT << ").");
 	}
 
-	ROS_INFO_STREAM("Counts per unit were successfully read.");
+	int i, j;
+	for(i = 0; i < 3; i++)
+		for(j = 0; j < 6; j++)
+			matrix[i][j] /= CpF;
+
+	for(i = 3; i < 6; i++)
+		for(j = 0; j < 6; j++)
+			matrix[i][j] /= CpT;
 
 	return true;
 }
@@ -172,37 +185,6 @@ bool SchunkFTSensorInterface::requestMatrix()
 	return true;
 }
 
-bool SchunkFTSensorInterface::requestBias()
-{
-	bias_obtained = false;
-
-	ROS_INFO("Reading biasing values...");
-
-	/*
-	 * if bias was previously obtained,
-	 * then request data timer is already running and data is being requested regularly,
-	 * so just reset bias_obtained flag to update biasing values next time when SG data is received
-	 */
-	if(bias_obtained)
-	{
-		bias_obtained = false;
-	}
-	else // send data request
-	{
-		driver->send(f_data_request);
-	}
-
-	ros::Rate r(publish_rate / 3);
-	r.sleep();
-
-	if(bias_obtained)
-		ROS_INFO_STREAM("Biasing values were successfully read.");
-	else
-		return err("Reading biasing values failed.");
-
-	return bias_obtained;
-}
-
 bool SchunkFTSensorInterface::initRos()
 {
 	sensorTopic = nh.advertise<geometry_msgs::Wrench>(ros::this_node::getName() + "/sensor_data", 1);
@@ -213,6 +195,11 @@ bool SchunkFTSensorInterface::initRos()
 	return true;
 }
 
+void SchunkFTSensorInterface::resetBias()
+{
+	bias_obtained = false;
+}
+
 bool SchunkFTSensorInterface::err(std::string mes)
 {
 	ROS_ERROR_STREAM(ros::this_node::getName() << " --> " << mes);
@@ -221,10 +208,9 @@ bool SchunkFTSensorInterface::err(std::string mes)
 
 bool SchunkFTSensorInterface::failure(std::string mes)
 {
-	silenceTimer.stop();
-	dataRequestTimer.stop();
 	// TODO handle failure here
 
+	finalize();
 	return err("FAILURE: " + mes);
 }
 
@@ -268,7 +254,7 @@ bool SchunkFTSensorInterface::checkStatus()
 	bool critical = false;
 
 	if(status & Watchdog_Reset){
-		failure("Watchdog Reset.");
+		failure("Watchdog reset.");
 	}
 	if(status & DAC_ADC_Too_High){
 		failure("DAC/ADC check result too high.");

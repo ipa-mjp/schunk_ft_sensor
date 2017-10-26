@@ -12,6 +12,8 @@
 #include <socketcan_interface/threading.h>
 #include <geometry_msgs/Wrench.h>
 
+#define AVG_SMPL_CNT 20
+
 class Version
 {
 	public:
@@ -97,15 +99,17 @@ class SchunkFTSensorInterface
 
 		short	sg[6] = {0},
 				bias[6] = {0};
+		volatile int sample_sum[6] = {0}, sample_cnt = 0;
 
 		float matrix[6][6];
 
-		unsigned int CpT = 1000000, CpF = 1000000;
+		unsigned int CpF = 1000000, CpT = 1000000;
 
 		double 	publish_rate = 20.0, // Hz
 				silence_limit = 0.1; // sec.
 
 		bool driver_initialized = false;
+		bool average = true;
 
 		volatile bool	calibration_message_received = false,
 						calibration_successfully_set = false,
@@ -135,8 +139,9 @@ class SchunkFTSensorInterface
 		void extractFirmwareVersion(const can::Frame &f);
 		void extractCountsPerUnit(const can::Frame &f);
 		void checkCalibration(const can::Frame &f);
-		void biasRawSGData();
-		void convertToFT();
+		void averageRawSGData(short *data);
+		void biasRawSGData(short *data);
+		void convertToFT(short *data);
 
 		bool initParams();
 		bool initDriver();
@@ -144,7 +149,6 @@ class SchunkFTSensorInterface
 		bool requestFirmwareVersion();
 		bool requestCountsPerUnits();
 		bool requestMatrix();
-		bool requestBias();
 		bool initRos();
 
 		bool failure(std::string mes);
@@ -165,6 +169,7 @@ class SchunkFTSensorInterface
 
 		bool initialize();
 		bool finalize();
+		void resetBias();
 
 };
 
