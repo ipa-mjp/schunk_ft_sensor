@@ -17,10 +17,11 @@
 
   <buildtool_depend>catkin</buildtool_depend>
 
-  <depend>geometry_msgs</depend>
   <depend>roscpp</depend>
   <depend>socketcan_interface</depend>
-
+  <depend>geometry_msgs</depend>
+  <depend>std_msgs</depend>
+  <depend>std_srvs</depend>
 
   <!-- The export tag contains other, unspecified, tags -->
   <export>

@@ -11,8 +11,8 @@
 #include <socketcan_interface/socketcan.h>
 #include <socketcan_interface/threading.h>
 #include <geometry_msgs/Wrench.h>
-
-#define AVG_SMPL_CNT 20
+#include <std_msgs/String.h>
+#include <std_srvs/Empty.h>
 
 class Version
 {
@@ -85,7 +85,8 @@ class SchunkFTSensorInterface
 		bool debug = false;
 
 		ros::NodeHandle nh;
-		ros::Publisher sensorTopic;
+		ros::Publisher sensorTopic, failureTopic;
+		ros::ServiceServer resetBiasSS;
 
 		boost::shared_ptr<can::DriverInterface> driver;
 
@@ -99,6 +100,7 @@ class SchunkFTSensorInterface
 		short	sg[6] = {0},
 				bias[6] = {0};
 		volatile int sample_sum[6] = {0}, sample_cnt = 0;
+		int sample_count = 20;
 
 		float matrix[6][6];
 
@@ -170,6 +172,7 @@ class SchunkFTSensorInterface
 		bool initialize();
 		bool finalize();
 		void resetBias();
+		bool resetBiasSrv(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp);
 		void runSensor();
 		void stopSensor();
 

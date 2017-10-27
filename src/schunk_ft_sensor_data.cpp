@@ -124,7 +124,7 @@ void SchunkFTSensorInterface::extractRawSGData(const can::Frame &f)
 void SchunkFTSensorInterface::averageRawSGData(short *data)
 {
 	int r;
-	if(sample_cnt < AVG_SMPL_CNT)
+	if(sample_cnt < sample_count)
 	{
 		for(r = 0; r < 6; r++)
 			sample_sum[r] += data[r];
@@ -147,9 +147,9 @@ void SchunkFTSensorInterface::biasRawSGData(short *data)
 	int r;
 	if(!bias_obtained)
 	{
+		bias_obtained = true;
 		for(r = 0; r < 6; r++)
 			bias[r] = data[r];
-		bias_obtained = true;
 		return;
 	}
 

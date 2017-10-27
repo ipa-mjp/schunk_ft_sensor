@@ -2,10 +2,16 @@ cmake_minimum_required(VERSION 2.8.3)
 project(schunk_ft_sensor)
 add_compile_options(-std=c++11)
 
+set(_COMPONENTS
+    socketcan_interface
+    roscpp
+    geometry_msgs
+    std_msgs
+    std_srvs
+)
+
 find_package(catkin REQUIRED COMPONENTS
-  geometry_msgs
-  socketcan_interface
-  roscpp
+    ${_COMPONENTS}
 )
 
 include_directories(include ${catkin_INCLUDE_DIRS})
@@ -16,7 +22,8 @@ set(_SOURCES
     src/schunk_ft_state.cpp
     src/schunk_ft_callbacks.cpp
     src/schunk_ft_sensor_data.cpp
-    )
+    src/schunk_ft_sensor_helpers.cpp
+)
 
 catkin_package(CATKIN_DEPENDS
                DEPENDS geometry_msgs socketcan_interface roscpp
