@@ -112,7 +112,6 @@ void SchunkFTSensorInterface::extractRawSGData(const can::Frame &f)
 		}
 	}
 
-	not_silent = true;
 	sg_data_received = true;
 
 	short data[6];

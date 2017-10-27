@@ -49,13 +49,3 @@ void SchunkFTSensorInterface::stateCB(const can::State & s)
     ROS_ERROR("Error: %s, asio: %s", err.c_str(), s.error_code.message().c_str());
   }
 }
-
-void SchunkFTSensorInterface::silenceTimerCB(const ros::TimerEvent& event)
-{
-	if(!not_silent)
-	{
-		failure("Silence limit exceeded.");
-	}
-
-	not_silent = false;
-}

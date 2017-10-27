@@ -85,7 +85,6 @@ class SchunkFTSensorInterface
 		bool debug = false;
 
 		ros::NodeHandle nh;
-		ros::Timer silenceTimer;
 		ros::Publisher sensorTopic;
 
 		boost::shared_ptr<can::DriverInterface> driver;
@@ -115,9 +114,10 @@ class SchunkFTSensorInterface
 						counts_per_unit_received = false,
 						matrix_data_obtained[6] = {false},
 						bias_obtained = false,
-						not_silent = true,
 						sg_data_received = true,
 						sensor_running = false;
+
+		volatile double sg_data_request_timstamp = 0;
 
 		unsigned short status = 0;
 
@@ -134,7 +134,6 @@ class SchunkFTSensorInterface
 		void frameCB(const can::Frame &f);
 		void stateCB(const can::State & s);
 		void requestSGDataThread();
-		void silenceTimerCB(const ros::TimerEvent& event);
 		void extractRawSGData(const can::Frame &f);
 		void extractMatrix(const can::Frame &f);
 		void extractFirmwareVersion(const can::Frame &f);

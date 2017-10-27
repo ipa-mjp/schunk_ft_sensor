@@ -59,7 +59,6 @@ bool SchunkFTSensorInterface::initParams()
 	sample_cnt = 0;
 
 	sg_data_received = true;
-	not_silent = true;
 
 	resetBias();
 
@@ -191,10 +190,6 @@ bool SchunkFTSensorInterface::requestMatrix()
 bool SchunkFTSensorInterface::initRos()
 {
 	sensorTopic = nh.advertise<geometry_msgs::Wrench>(ros::this_node::getName() + "/sensor_data", 1);
-
-	silenceTimer = nh.createTimer(ros::Duration(silence_limit), &SchunkFTSensorInterface::silenceTimerCB, this);
-	silenceTimer.stop();
-
 	return true;
 }
 
@@ -202,9 +197,21 @@ void SchunkFTSensorInterface::requestSGDataThread()
 {
 	while(ros::ok() && sensor_running)
 	{
-		if(!sg_data_received) continue;
+		if(!sg_data_received)
+		{
+			if(ros::Time::now().toSec() - sg_data_request_timstamp > silence_limit)
+			{
+				failure("Silence limit exceeded.");
+				return;
+			}
+			else
+			{
+				continue;
+			}
+		}
 		sg_data_received = false;
 		driver->send(f_data_request);
+		sg_data_request_timstamp = ros::Time::now().toSec();
 	}
 }
 
@@ -218,13 +225,11 @@ void SchunkFTSensorInterface::runSensor()
 	if(sensor_running) return;
 	sensor_running = true;
 	boost::thread t(boost::bind(&SchunkFTSensorInterface::requestSGDataThread, this));
-	silenceTimer.start();
 	ROS_INFO_STREAM("Data transfer started.");
 }
 
 void SchunkFTSensorInterface::stopSensor()
 {
-	silenceTimer.stop();
 	sensor_running = false;
 	ROS_INFO_STREAM("Data transfer stopped.");
 }
