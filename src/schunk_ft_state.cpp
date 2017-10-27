@@ -15,8 +15,9 @@ bool SchunkFTSensorInterface::initialize()
 			&& requestCountsPerUnits()
 			&& initRos())
 	{
-		ROS_INFO_STREAM("Sensor was successfully initialized.");
 
+		ROS_INFO_STREAM("Sensor was successfully initialized.");
+		runSensor();
 		return true;
 	}
 
@@ -25,13 +26,13 @@ bool SchunkFTSensorInterface::initialize()
 
 bool SchunkFTSensorInterface::finalize()
 {
-	silenceTimer.stop();
-	dataRequestTimer.stop();
+	stopSensor();
 
 	if(!driver_initialized) return true;
 
 	driver->shutdown();
 	driver.reset();
+	driver_initialized = false;
 	return true;
 }
 
@@ -51,12 +52,14 @@ bool SchunkFTSensorInterface::initParams()
 	calibration = (unsigned char)calibr;
 
 	nh.getParam(ros::this_node::getName() + "/debug", debug);
-	nh.getParam(ros::this_node::getName() + "/publish_rate", publish_rate);
 	nh.getParam(ros::this_node::getName() + "/silence_limit", silence_limit);
 
 	f_data_request = makeFrame(Read_SG_Data);
 	for(int i = 0; i < 6; i++) sample_sum[i] = 0;
 	sample_cnt = 0;
+
+	sg_data_received = true;
+	not_silent = true;
 
 	resetBias();
 
@@ -189,15 +192,41 @@ bool SchunkFTSensorInterface::initRos()
 {
 	sensorTopic = nh.advertise<geometry_msgs::Wrench>(ros::this_node::getName() + "/sensor_data", 1);
 
-	dataRequestTimer = nh.createTimer(ros::Duration(1 / publish_rate), &SchunkFTSensorInterface::dataRequestTimerCB, this);
 	silenceTimer = nh.createTimer(ros::Duration(silence_limit), &SchunkFTSensorInterface::silenceTimerCB, this);
+	silenceTimer.stop();
 
 	return true;
+}
+
+void SchunkFTSensorInterface::requestSGDataThread()
+{
+	while(ros::ok() && sensor_running)
+	{
+		if(!sg_data_received) continue;
+		sg_data_received = false;
+		driver->send(f_data_request);
+	}
 }
 
 void SchunkFTSensorInterface::resetBias()
 {
 	bias_obtained = false;
+}
+
+void SchunkFTSensorInterface::runSensor()
+{
+	if(sensor_running) return;
+	sensor_running = true;
+	boost::thread t(boost::bind(&SchunkFTSensorInterface::requestSGDataThread, this));
+	silenceTimer.start();
+	ROS_INFO_STREAM("Data transfer started.");
+}
+
+void SchunkFTSensorInterface::stopSensor()
+{
+	silenceTimer.stop();
+	sensor_running = false;
+	ROS_INFO_STREAM("Data transfer stopped.");
 }
 
 bool SchunkFTSensorInterface::err(std::string mes)

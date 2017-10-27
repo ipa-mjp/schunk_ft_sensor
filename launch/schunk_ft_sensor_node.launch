@@ -6,7 +6,6 @@
   	<arg name="can_device"/>
   	<arg name="can_node_id"/>
   	<arg name="calibration" default="0"/>
-  	<arg name="publish_rate" default="200"/>
   	<arg name="silence_limit" default="0.100"/>
   	
 	<node name="$(arg node_name)" pkg="schunk_ft_sensor" type="schunk_ft_sensor_node" output="screen">
@@ -14,7 +13,6 @@
 		<param name="can_device" value="$(arg can_device)"/>
 		<param name="can_node_id" value="$(arg can_node_id)"/>
 		<param name="calibration" value="$(arg calibration)"/>
-		<param name="publish_rate" value="$(arg publish_rate)"/>
 		<param name="silence_limit" value="$(arg silence_limit)"/>
 	</node>
 

@@ -50,17 +50,12 @@ void SchunkFTSensorInterface::stateCB(const can::State & s)
   }
 }
 
-void SchunkFTSensorInterface::dataRequestTimerCB(const ros::TimerEvent& event)
-{
-	driver->send(f_data_request);
-}
-
 void SchunkFTSensorInterface::silenceTimerCB(const ros::TimerEvent& event)
 {
-	if(!sg_data_received)
+	if(!not_silent)
 	{
 		failure("Silence limit exceeded.");
 	}
 
-	sg_data_received = false;
+	not_silent = false;
 }

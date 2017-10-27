@@ -85,7 +85,7 @@ class SchunkFTSensorInterface
 		bool debug = false;
 
 		ros::NodeHandle nh;
-		ros::Timer dataRequestTimer, silenceTimer;
+		ros::Timer silenceTimer;
 		ros::Publisher sensorTopic;
 
 		boost::shared_ptr<can::DriverInterface> driver;
@@ -105,8 +105,7 @@ class SchunkFTSensorInterface
 
 		unsigned int CpF = 1000000, CpT = 1000000;
 
-		double 	publish_rate = 20.0, // Hz
-				silence_limit = 0.1; // sec.
+		double 	silence_limit = 0.1; // sec.
 
 		bool driver_initialized = false;
 		bool average = true;
@@ -116,7 +115,9 @@ class SchunkFTSensorInterface
 						counts_per_unit_received = false,
 						matrix_data_obtained[6] = {false},
 						bias_obtained = false,
-						sg_data_received = true;
+						not_silent = true,
+						sg_data_received = true,
+						sensor_running = false;
 
 		unsigned short status = 0;
 
@@ -132,7 +133,7 @@ class SchunkFTSensorInterface
 
 		void frameCB(const can::Frame &f);
 		void stateCB(const can::State & s);
-		void dataRequestTimerCB(const ros::TimerEvent& event);
+		void requestSGDataThread();
 		void silenceTimerCB(const ros::TimerEvent& event);
 		void extractRawSGData(const can::Frame &f);
 		void extractMatrix(const can::Frame &f);
@@ -170,6 +171,8 @@ class SchunkFTSensorInterface
 		bool initialize();
 		bool finalize();
 		void resetBias();
+		void runSensor();
+		void stopSensor();
 
 };
 
