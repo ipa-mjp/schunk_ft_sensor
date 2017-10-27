@@ -1,4 +1,4 @@
-#include <schunk_ft_sensor/schunk_ft.h>
+#include <schunk_ft_sensor/schunk_ft_sensor.h>
 
 int main(int argc, char *argv[])
 {
