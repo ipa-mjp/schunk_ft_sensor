@@ -230,6 +230,7 @@ void SchunkFTSensorInterface::resetBias()
 bool SchunkFTSensorInterface::resetBiasSrv(std_srvs::Empty::Request &req, std_srvs::Empty::Response &resp)
 {
 	resetBias();
+	while(ros::ok() && !bias_obtained);
 	return true;
 }
 
