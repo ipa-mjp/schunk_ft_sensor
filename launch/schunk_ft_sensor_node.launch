@@ -6,7 +6,7 @@
   	<arg name="can_device"/>
   	<arg name="can_node_id"/>
   	<arg name="calibration" default="0"/>
-  	<arg name="sample_count" default="20"/>
+  	<arg name="sample_count" default="50"/>
   	<arg name="silence_limit" default="0.100"/>
   	
 	<node name="$(arg node_name)" pkg="schunk_ft_sensor" type="schunk_ft_sensor_node" output="screen">

@@ -58,7 +58,7 @@
 
 bool SchunkFTSensorInterface::err(std::string mes)
 {
-	ROS_ERROR_STREAM(ros::this_node::getName() << " --> " << mes);
+	ROS_ERROR_STREAM_NAMED(ros::this_node::getName(), mes);
 	return false; // always return false
 }
 

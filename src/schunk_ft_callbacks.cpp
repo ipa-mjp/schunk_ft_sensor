@@ -92,10 +92,10 @@ void SchunkFTSensorInterface::stateCB(const can::State & s)
   driver->translateError(s.internal_error, err);
   if (!s.internal_error)
   {
-    ROS_INFO("State: %s, asio: %s", err.c_str(), s.error_code.message().c_str());
+    ROS_INFO_NAMED(ros::this_node::getName(), "State: %s, asio: %s", err.c_str(), s.error_code.message().c_str());
   }
   else
   {
-    ROS_ERROR("Error: %s, asio: %s", err.c_str(), s.error_code.message().c_str());
+    ROS_ERROR_NAMED(ros::this_node::getName(), "Error: %s, asio: %s", err.c_str(), s.error_code.message().c_str());
   }
 }

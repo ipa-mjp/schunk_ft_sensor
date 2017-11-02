@@ -64,7 +64,7 @@ bool SchunkFTSensorInterface::initialize()
 			&& initRos())
 	{
 
-		ROS_INFO_STREAM("Sensor was successfully initialized.");
+		ROS_INFO_STREAM_NAMED(ros::this_node::getName(), "Sensor was successfully initialized.");
 		runSensor();
 		return true;
 	}
@@ -131,7 +131,7 @@ bool SchunkFTSensorInterface::initDriver()
 	frame_listener = driver->createMsgListener(can::CommInterface::FrameDelegate(this, &SchunkFTSensorInterface::frameCB));
 	state_listener = driver->createStateListener(can::StateInterface::StateDelegate(this, &SchunkFTSensorInterface::stateCB));
 
-	ROS_INFO("Successfully connected to %s.", can_device.c_str());
+	ROS_INFO_NAMED(ros::this_node::getName(), "Successfully connected to %s.", can_device.c_str());
 
 	driver_initialized = true;
 	return driver_initialized;
@@ -143,23 +143,23 @@ bool SchunkFTSensorInterface::setCalibration()
 	calibration_successfully_set = false;
 
 	ros::Rate r(6);
-	ROS_INFO_STREAM("Setting calibration to " << (int)calibration);
+	ROS_INFO_STREAM_NAMED(ros::this_node::getName(), "Setting calibration to " << (int)calibration);
 
 	driver->send(makeFrame(Active_Calibration, calibration));
 	r.sleep();
 
 	if(!calibration_message_received)
 	{
-		ROS_ERROR_STREAM("Failed to receive response from node with id " << node_id);
+		ROS_ERROR_STREAM_NAMED(ros::this_node::getName(), "Failed to receive response from node with id " << node_id);
 		return false;
 	}
 	else if(!calibration_successfully_set)
 	{
-		ROS_ERROR_STREAM("Failed to set calibration to value " << calibration);
+		ROS_ERROR_STREAM_NAMED(ros::this_node::getName(), "Failed to set calibration to value " << calibration);
 		return false;
 	}
 
-	ROS_INFO_STREAM("Calibration was successfully set to " << (int)calibration);
+	ROS_INFO_STREAM_NAMED(ros::this_node::getName(), "Calibration was successfully set to " << (int)calibration);
 
 	return requestMatrix();
 }
@@ -169,16 +169,16 @@ bool SchunkFTSensorInterface::requestFirmwareVersion()
 {
 	ver.received = false;
 	ros::Rate r(4);
-	ROS_INFO("Requesting Firmware version.");
+	ROS_INFO_NAMED(ros::this_node::getName(), "Requesting Firmware version.");
 	driver->send(makeFrame(Read_Firmware_Version));
 	r.sleep();
 	if(ver.received)
 	{
-		ROS_INFO_STREAM("Firmware version was successfully read: " << ver.getVersionStr());
+		ROS_INFO_STREAM_NAMED(ros::this_node::getName(), "Firmware version was successfully read: " << ver.getVersionStr());
 	}
 	else
 	{
-		ROS_WARN_STREAM("Failed to read Firmware version.");
+		ROS_WARN_STREAM_NAMED(ros::this_node::getName(), "Failed to read Firmware version.");
 	}
 	return true;
 }
@@ -190,19 +190,19 @@ bool SchunkFTSensorInterface::requestCountsPerUnits()
 	counts_per_unit_received = false;
 	if(ver.received && ver.standardCpTCpF())
 	{
-		ROS_WARN_STREAM("With firmware version below 3.7 standard values for Counts per Force and Torque units will be used.");
+		ROS_WARN_STREAM_NAMED(ros::this_node::getName(), "With firmware version below 3.7 standard values for Counts per Force and Torque units will be used.");
 	}
 	else
 	{
 		ros::Rate r(4);
-		ROS_INFO("Requesting counts per Force and Torque.");
+		ROS_INFO_NAMED(ros::this_node::getName(), "Requesting counts per Force and Torque.");
 
 		driver->send(makeFrame(Read_Counts_Per_Unit));
 		r.sleep();
 		if(counts_per_unit_received)
-			ROS_INFO_STREAM("Counts per unit were successfully read (CpF: " << (int)CpF << ", CpT: " << (int)CpT << ").");
+			ROS_INFO_STREAM_NAMED(ros::this_node::getName(), "Counts per unit were successfully read (CpF: " << (int)CpF << ", CpT: " << (int)CpT << ").");
 		else
-			ROS_WARN_STREAM("Failed to read counts per unit. Standard values for Counts per Force and Torque units will be used (CpF: " << (int)CpF << ", CpT: " << (int)CpT << ").");
+			ROS_WARN_STREAM_NAMED(ros::this_node::getName(), "Failed to read counts per unit. Standard values for Counts per Force and Torque units will be used (CpF: " << (int)CpF << ", CpT: " << (int)CpT << ").");
 	}
 
 	int i, j;
@@ -226,7 +226,7 @@ bool SchunkFTSensorInterface::requestMatrix()
 
 	for(axis_row = 0; axis_row < 6; axis_row++)
 	{
-		ROS_INFO_STREAM("Reading calibration matrix row " << (int)axis_row);
+		ROS_INFO_STREAM_NAMED(ros::this_node::getName(), "Reading calibration matrix row " << (int)axis_row);
 
 		driver->send(makeFrame(Read_Matrix, axis_row));
 		r.sleep();
@@ -235,7 +235,7 @@ bool SchunkFTSensorInterface::requestMatrix()
 			return err("Reading calibration matrix failed.");
 	}
 
-	ROS_INFO_STREAM("Calibration matrix was successfully read.");
+	ROS_INFO_STREAM_NAMED(ros::this_node::getName(), "Calibration matrix was successfully read.");
 
 	return true;
 }
@@ -287,12 +287,12 @@ void SchunkFTSensorInterface::runSensor()
 	if(sensor_running) return;
 	sensor_running = true;
 	boost::thread t(boost::bind(&SchunkFTSensorInterface::requestSGDataThread, this));
-	ROS_INFO_STREAM("Data transfer started.");
+	ROS_INFO_STREAM_NAMED(ros::this_node::getName(), "Data transfer started.");
 }
 
 void SchunkFTSensorInterface::stopSensor()
 {
 	if(!sensor_running) return;
 	sensor_running = false;
-	ROS_INFO_STREAM("Data transfer stopped.");
+	ROS_INFO_STREAM_NAMED(ros::this_node::getName(), "Data transfer stopped.");
 }
