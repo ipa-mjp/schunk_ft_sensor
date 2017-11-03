@@ -34,13 +34,13 @@ Sensor's "silence" duration limit in seconds (default is ***0.1***). If sensor d
 #
 ### Runtime
 After a successful launch you will get a ROS node with a name specified by the ***node_name*** argument in previous step and some topics and services in the corresponding namespace.
-##### Node
+##### ROS Nodes
 - **/<node_name>**
-##### ROS topics
+##### ROS Topics
 - **/<node_name>/sensor_data**
 Sensor data will be published on this topic. The publishing rate is limited by the PC's computational power and the used baudrate, as well as divided by sample_count parameter. As such, publishing is done without any specific rate or "as fast as possible".
 - **/<node_name>/failure**
 Any critical failure will be published on this topic followed by **interface shutdown**.
-##### ROS services
+##### ROS Services
 - **/<node_name>/reset_bias**
 Calling this service will treat current measurement values of the sensor as bias and set measurement values to zero until they are changed. Does not require any parameter.
