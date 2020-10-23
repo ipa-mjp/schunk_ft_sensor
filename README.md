@@ -44,3 +44,6 @@ Any critical failure will be published on this topic followed by **interface shu
 ##### ROS Services
 - **/<node_name>/reset_bias**
 Calling this service will treat current measurement values of the sensor as bias and set measurement values to zero until they are changed. Does not require any parameter.
+
+### Debuging with COB4
+1. Move robot arm manually using `rqt_joint_trajectory_controller`. First need to init only right arm `rosservice call /arm_right/driver/init "{}"`.In order to connect with Care-O-Bot4-25 `export ROS_MASTER_URI=http://10.4.25.11:11311` and CAN-ID would be set to can2. 
